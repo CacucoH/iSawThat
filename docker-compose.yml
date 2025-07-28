@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: bot
+      POSTGRES_PASSWORD: ${DB_PASSW}
+      POSTGRES_DB: telegram_db
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  bot:
+    build: .
+    depends_on:
+      - postgres
+    volumes:
+      - ./logs:/app/logs
+      - ./session:/app/session
+      - ./config:/app/config
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://bot:${DB_PASSW}@postgres:5432/telegram_db
+    command: ["python", "app/main.py"]
+
+volumes:
+  pgdata:
