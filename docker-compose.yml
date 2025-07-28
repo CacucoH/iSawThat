@@ -20,7 +20,7 @@ services:
       - ./logs:/app/logs
       - ./session:/app/session
       - ./config:/app/config
-    environment:
+    environment: 
       - DATABASE_URL=postgresql+asyncpg://bot:${DB_PASSW}@postgres:5432/telegram_db
     command: ["python", "app/main.py"]
 

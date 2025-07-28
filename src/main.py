@@ -7,6 +7,10 @@ from telethon import TelegramClient, events
 from telethon.tl.functions.users import GetFullUserRequest
 from telethon.sessions import StringSession
 
+from events.handlers.message_handler import handle_new_message
+from events.handlers.delete_handler import handle_message_deleted
+from db.operations import init_db
+
 # Загрузка переменных окружения
 load_dotenv('./misc/config/passwd.env')
 load_dotenv('./misc/config/settings.env')
@@ -15,11 +19,11 @@ uvloop.install()
 
 # Настройка логов
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="[%(levelname)s] - %(asctime)s - %(message)s",
     datefmt="%Y/%m/%d %H:%M:%S",
-    filename=f"./misc/logs/log.log",
-    filemode="w"
+    # filename=f"./misc/logs/log.log",
+    # filemode="w"
 )
 
 api_id = int(os.getenv('API_ID'))
@@ -28,28 +32,35 @@ session_name = os.getenv('APP_NAME')
 
 client = TelegramClient('./misc/session/' + session_name, api_id, api_hash)
 
+client.add_event_handler(handle_new_message, events.NewMessage())
+client.add_event_handler(handle_message_deleted, events.MessageDeleted())
 
-@client.on(events.MessageDeleted)
-async def handle_message_deleted(event: events.messagedeleted.MessageDeleted.Event):
-    """
-    Handles the MessageDeleted event.
-    """
-    # event.message_ids contains a list of IDs of the deleted messages
-    deleted_message_ids = event.deleted_ids
-    if len(deleted_message_ids) > 1:
-        print('several')
 
-    print(f"Messages with IDs {deleted_message_ids} were deleted")
+# @client.on(events.MessageDeleted)
+# async def handle_message_deleted(event: events.messagedeleted.MessageDeleted.Event):
+#     """
+#     Handles the MessageDeleted event.
+#     """
+#     # event.message_ids contains a list of IDs of the deleted messages
+#     deleted_message_ids = event.deleted_ids
+#     if len(deleted_message_ids) > 1:
+#         print('several')
 
-    # event.channel_id will be available for channels and supergroups
-    if event.channel_id:
-        print(f"Deleted in channel/supergroup ID: {event.channel_id}")
-    else:
-        print("Deleted in a private chat or small group (channel ID not available).")
+#     print(f"Messages with IDs {deleted_message_ids} were deleted")
+
+#     # event.channel_id will be available for channels and supergroups
+#     if event.channel_id:
+#         print(f"Deleted in channel/supergroup ID: {event.channel_id}")
+#     else:
+#         print("Deleted in a private chat or small group (channel ID not available).")
+
 
 async def main():
+    # Firstly initialize db
+    await init_db()
+
     await client.start()
-    print("Client started. Listening for deleted messages...")
+    logging.info("Client started. Listening for deleted messages...")
     await client.run_until_disconnected()
 
 if __name__ == '__main__':
