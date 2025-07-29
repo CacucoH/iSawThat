@@ -7,9 +7,11 @@ from telethon import TelegramClient, events
 from telethon.tl.functions.users import GetFullUserRequest
 from telethon.sessions import StringSession
 
-from events.handlers.message_handler import handle_new_message
+from events.handlers.message_handler import handle_new_message, handle_start_message
 from events.handlers.delete_handler import handle_message_deleted
+from events.user_interaction.callback_handler import callbacks_handler
 from db.operations import init_db
+
 
 # Загрузка переменных окружения
 load_dotenv('./misc/config/passwd.env')
@@ -26,42 +28,38 @@ logging.basicConfig(
     # filemode="w"
 )
 
+
+### INITIALIZE USERBOT AND BOT ###
 api_id = int(os.getenv('API_ID'))
 api_hash = os.getenv('API_HASH')
 session_name = os.getenv('APP_NAME')
 
-client = TelegramClient('./misc/session/' + session_name, api_id, api_hash)
+userbot = TelegramClient('./misc/session/' + session_name, api_id, api_hash) # Used for message tracking
+bot = TelegramClient('./misc/session/' + session_name + "_bot", api_id, api_hash) # Used for settings & callbacks
 
-client.add_event_handler(handle_new_message, events.NewMessage())
-client.add_event_handler(handle_message_deleted, events.MessageDeleted())
+userbot.add_event_handler(handle_new_message, events.NewMessage())
+userbot.add_event_handler(handle_message_deleted, events.MessageDeleted())
 
-
-# @client.on(events.MessageDeleted)
-# async def handle_message_deleted(event: events.messagedeleted.MessageDeleted.Event):
-#     """
-#     Handles the MessageDeleted event.
-#     """
-#     # event.message_ids contains a list of IDs of the deleted messages
-#     deleted_message_ids = event.deleted_ids
-#     if len(deleted_message_ids) > 1:
-#         print('several')
-
-#     print(f"Messages with IDs {deleted_message_ids} were deleted")
-
-#     # event.channel_id will be available for channels and supergroups
-#     if event.channel_id:
-#         print(f"Deleted in channel/supergroup ID: {event.channel_id}")
-#     else:
-#         print("Deleted in a private chat or small group (channel ID not available).")
+bot.add_event_handler(handle_start_message, events.NewMessage(pattern='/start'))
+bot.add_event_handler(callbacks_handler, events.CallbackQuery())
+### END OF INITIALIZATION ###
 
 
 async def main():
+    print(os.getenv('BOT_TOKEN'))
+    await bot.start(bot_token=os.getenv('BOT_TOKEN'))  # Запускаем обычного бота
+    await userbot.start(),  # Запускаем Userbot
+    
     # Firstly initialize db
-    await init_db()
+    me = await userbot.get_me()
+    await init_db(me)
 
-    await client.start()
     logging.info("Client started. Listening for deleted messages...")
-    await client.run_until_disconnected()
+    
+    await asyncio.gather(
+        bot.run_until_disconnected(),       # Запускаем обычного бота до его отключения
+        userbot.run_until_disconnected()    # Запускаем userbot до его отключения
+    )
 
 if __name__ == '__main__':
     import asyncio

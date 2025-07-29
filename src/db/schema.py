@@ -2,7 +2,6 @@ from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.orm import declarative_base
 import datetime
 
-
 Base = declarative_base()
 
 
@@ -26,14 +25,15 @@ class UserSettings(Base):
     """
     __tablename__ = 'user_settings'
 
-    user_id = Column(String, primary_key=True, index=True)
-    is_whitelist_mode = Column(Boolean, default=True)
+    user_id = Column(String, primary_key=True, index=True)  # Root user's id
+    is_whitelist_mode = Column(Boolean, default=True)       # Defines whether white or blacklist mode enabled for this session
+    bot_active = Column(Boolean, default=True)              # Defines whether bot is active or not
 
-
-class UsersList(Base):
+class Users(Base):
     """
         Represents a list of (white/black)listed from tracking Telegram users
     """
     __tablename__ = 'tg_users'
 
     user_id = Column(String, primary_key=True, index=True)
+    user_full_name = Column(String, nullable=False)
