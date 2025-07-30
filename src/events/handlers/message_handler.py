@@ -1,32 +1,54 @@
 import os
+import re
 from telethon import TelegramClient, events
 from telethon.events.newmessage import NewMessage
 from telethon.tl.patched import Message
 from telethon.tl.types import User 
 
+from events.user_interaction.states import States
 from events.user_interaction.gui_settings import main_menu_buttons
-from db.operations import add_msg, get_user_settings
+from logic.logic import get_user_info
+from db.operations import add_msg, get_user_settings, set_user_state, update_userlist, search_user_by_id
 from db.schema import Message
 
 
 async def handle_new_message(event: events.NewMessage.Event):
     message: Message = event.message
     user_id = message.sender_id
+    settings = await get_user_settings()
+
+    if not message.sender or message.sender.bot:
+        return
+
+    # Check if the message is in the pending list update state
+    if States(settings.state) == States.PENDING_LIST_UPDATE \
+        and str(user_id) == str(settings.user_id):
+        if message.text:
+            usernames = message.text.replace(' ', '').split(',')
+            users_info = await get_user_info(event.client, usernames)
+            await update_userlist(users_info)
+            await event.delete()
+            # await event.respond("✅ Список обновлён!")
+            await set_user_state(States.LIST_UPDATED)
+            return
 
     # In case bot is deactivated
-    settings = await get_user_settings()
-    if settings.bot_active is False:
+    if not settings.bot_active:
         return
 
-    # Skip msg if there is no sender or if the sender is a bot
-    user: User = message.sender
-    if not user or user.bot:
+    # Skip messages if PM filtration is enabled and the message is not from a private chat
+    if not event.is_private and settings.pm_filter:
         return
 
-    # Get minimal userinfo
+    # Get minimal userinfo and filter
     sender_id = str(message.sender_id)
-    if user:
-        sender_id = user.username
+    
+    # Apply blacklist filtering
+    if await search_user_by_id(sender_id) and not settings.is_whitelist_mode:
+        return
+    # Apply whitelist filtering
+    elif not await search_user_by_id(sender_id) and settings.is_whitelist_mode:
+        return
 
     await add_msg(
         tg_msg_id=message.id,
@@ -38,9 +60,14 @@ async def handle_new_message(event: events.NewMessage.Event):
     print(f"New message from user ID: {user_id} {message.text}")
 
 
-async def handle_start_message(event: NewMessage.Event, edit: bool = False):
+async def handle_start_message(event: NewMessage.Event, edit: bool = False, message: str | None = None):
+    """Handles the /start command and displays the main menu."""
+    await set_user_state(States.DEFAULT)
+    if not message:
+        message = "Давай настраивай, че как не свой:"
+
     if edit:
-        await event.edit("Выберете действие:", buttons=await main_menu_buttons())
+        await event.edit(message, buttons=await main_menu_buttons())
         return
-    
-    await event.reply("Выберете действие:", buttons=await main_menu_buttons())
+
+    await event.reply(message, buttons=await main_menu_buttons())

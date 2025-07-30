@@ -4,18 +4,18 @@ import uvloop
 
 from dotenv import load_dotenv
 from telethon import TelegramClient, events
-from telethon.tl.functions.users import GetFullUserRequest
-from telethon.sessions import StringSession
 
 from events.handlers.message_handler import handle_new_message, handle_start_message
 from events.handlers.delete_handler import handle_message_deleted
 from events.user_interaction.callback_handler import callbacks_handler
 from db.operations import init_db
 
-
 # Загрузка переменных окружения
 load_dotenv('./misc/config/passwd.env')
 load_dotenv('./misc/config/settings.env')
+
+from logic.clients import userbot, bot
+
 
 uvloop.install()
 
@@ -28,25 +28,14 @@ logging.basicConfig(
     # filemode="w"
 )
 
-
-### INITIALIZE USERBOT AND BOT ###
-api_id = int(os.getenv('API_ID'))
-api_hash = os.getenv('API_HASH')
-session_name = os.getenv('APP_NAME')
-
-userbot = TelegramClient('./misc/session/' + session_name, api_id, api_hash) # Used for message tracking
-bot = TelegramClient('./misc/session/' + session_name + "_bot", api_id, api_hash) # Used for settings & callbacks
-
 userbot.add_event_handler(handle_new_message, events.NewMessage())
 userbot.add_event_handler(handle_message_deleted, events.MessageDeleted())
 
 bot.add_event_handler(handle_start_message, events.NewMessage(pattern='/start'))
 bot.add_event_handler(callbacks_handler, events.CallbackQuery())
-### END OF INITIALIZATION ###
 
 
 async def main():
-    print(os.getenv('BOT_TOKEN'))
     await bot.start(bot_token=os.getenv('BOT_TOKEN'))  # Запускаем обычного бота
     await userbot.start(),  # Запускаем Userbot
     

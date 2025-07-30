@@ -3,32 +3,37 @@ from telethon import TelegramClient
 from telethon.events.callbackquery import CallbackQuery
 
 from events.handlers.message_handler import handle_start_message
-from events.user_interaction.gui_settings import back_to_main_menu_button, change_mode_button, change_mode_menu_button
-from db.operations import update_userlist, update_whitelist_mode, get_user_settings, activate_bot
+from events.user_interaction.gui_settings import back_to_main_menu_button, settings_buttons
+from db.operations import get_victims_list, set_user_state, toggle_pm_filter, update_whitelist_mode, get_user_settings, activate_bot
+from events.user_interaction.states import States
 
 
 async def callbacks_handler(event: CallbackQuery.Event):
-    user_id = str(event.sender_id)
     callback = event.data
+    settings = await get_user_settings()
 
     match callback:
         case b"sw_mode":
-            settings = await get_user_settings()
             await update_whitelist_mode()
             await event.edit(
-                f"🔧 Режим изменен на **{'Whitelist ✅' if settings.is_whitelist_mode else 'Blacklist ❌'}**",
-                buttons=[ change_mode_button(), back_to_main_menu_button() ]
+                f"🔧 Режим изменен на **{'Whitelist ✅' if not settings.is_whitelist_mode else 'Blacklist ❌'}**",
+                buttons=settings_buttons(await get_user_settings())
             )
-        
-        case b"sw_mode_menu":
-            settings = await get_user_settings()
+
+        case b"sw_pm_filter":
+            await toggle_pm_filter()
             await event.edit(
-                f"🔧 Текущий режим: **{'Whitelist ✅' if settings.is_whitelist_mode else 'Blacklist ❌'}**",
-                buttons=[ change_mode_menu_button(), back_to_main_menu_button() ]
+                f"🔒 Теперь я слушаю сообщения **{'только из лс' if not settings.pm_filter else 'из всех источников'}**",
+                buttons=settings_buttons(await get_user_settings())
+            )
+
+        case b"sw_mode_menu":
+            await event.edit(
+                f"Настройки фильтрации сообщений:",
+                buttons=settings_buttons(await get_user_settings())
             )
 
         case b"toggle_bot":
-            settings = await get_user_settings()
             new_state = not settings.bot_active
             await activate_bot()
             await event.edit(
@@ -37,9 +42,22 @@ async def callbacks_handler(event: CallbackQuery.Event):
             )
         
         case b"update_list":
-            await event.edit("Ах, обновить список? Ну давай, я обновлю его для тебя! Введи список username'ов через запятую:")
+            await event.edit("Ах, обновить список? Ну давай, я обновлю его для тебя😎\nВведи список `username'ов` через запятую:",
+                              buttons=back_to_main_menu_button())
+            await set_user_state(States.PENDING_LIST_UPDATE)
+
+        case b"show_list":
+            list = await get_victims_list()
+            await event.edit(
+                f"**{'Список слежки:' if settings.is_whitelist_mode else 'Все, кроме:'}**\n" + "\n> ".join([f"{user['user_full_name']} (@{user['username']})" for user in list]) if list else "Список пуст :(",
+                buttons=back_to_main_menu_button()
+            )
 
         case b"back_to_main_menu":
+            if States(settings.state) == States.LIST_UPDATED:
+                await handle_start_message(event, True, "**Список обновлён!**\nВыбери действие:")
+                return
+            
             await handle_start_message(event, True)
 
         case _:
