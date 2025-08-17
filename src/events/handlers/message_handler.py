@@ -1,9 +1,8 @@
-import os
-import re
-from telethon import TelegramClient, events
+import logging
+from telethon import events
 from telethon.events.newmessage import NewMessage
 from telethon.tl.patched import Message
-from telethon.tl.types import User 
+from telethon.tl.types import PeerUser, PeerChannel
 
 from events.user_interaction.states import States
 from events.user_interaction.gui_settings import main_menu_buttons
@@ -17,8 +16,9 @@ async def handle_new_message(event: events.NewMessage.Event):
     user_id = message.sender_id
     settings = await get_user_settings()
 
-    if not message.sender or message.sender.bot:
-        return
+    if not isinstance(message.peer_id, PeerChannel):
+        if not message.sender or message.sender.bot:
+            return
 
     # Check if the message is in the pending list update state
     if States(settings.state) == States.PENDING_LIST_UPDATE \
@@ -57,7 +57,7 @@ async def handle_new_message(event: events.NewMessage.Event):
         content=message.text or "<No text content>"
     )
     
-    print(f"New message from user ID: {user_id} {message.text}")
+    logging.info(f"New message from user ID: {user_id} {message.text}")
 
 
 async def handle_start_message(event: NewMessage.Event, edit: bool = False, message: str | None = None):

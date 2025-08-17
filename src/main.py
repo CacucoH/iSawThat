@@ -3,7 +3,7 @@ import logging
 import uvloop
 
 from dotenv import load_dotenv
-from telethon import TelegramClient, events
+from telethon import events
 
 from events.handlers.message_handler import handle_new_message, handle_start_message
 from events.handlers.delete_handler import handle_message_deleted
@@ -17,7 +17,7 @@ load_dotenv('./misc/config/settings.env')
 from logic.clients import userbot, bot
 
 
-uvloop.install()
+# uvloop.install()
 
 # Настройка логов
 logging.basicConfig(
@@ -40,8 +40,7 @@ async def main():
     await userbot.start(),  # Запускаем Userbot
     
     # Firstly initialize db
-    me = await userbot.get_me()
-    await init_db(me)
+    await init_db(str(userbot._self_id), str(bot._self_id))
 
     logging.info("Client started. Listening for deleted messages...")
     

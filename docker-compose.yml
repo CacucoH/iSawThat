@@ -9,20 +9,27 @@ services:
       POSTGRES_DB: telegram_db
     volumes:
       - pgdata:/var/lib/postgresql/data
+    env_file:
+      - ./misc/config/settings.env
     ports:
-      - "5432:5432"
+      - "${DB_PORT}:${DB_PORT}"
+    command: -p ${DB_PORT}
+
 
   bot:
     build: .
     depends_on:
       - postgres
     volumes:
-      - ./logs:/app/logs
+      - ./src:/app
       - ./session:/app/session
-      - ./config:/app/config
-    environment: 
-      - DATABASE_URL=postgresql+asyncpg://bot:${DB_PASSW}@postgres:5432/telegram_db
-    command: ["python", "app/main.py"]
+      - ./misc:/app/misc
+    env_file:
+      - ./misc/config/passwd.env
+      - ./misc/config/settings.env
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://bot:${DB_PASSW}@postgres:${DB_PORT}/telegram_db
+    command: ["python", "/app/main.py"]
 
 volumes:
   pgdata:

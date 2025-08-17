@@ -26,6 +26,7 @@ class UserSettings(Base):
     __tablename__ = 'user_settings'
 
     user_id = Column(String, primary_key=True, index=True)  # Root user's id
+    bot_id = Column(String, nullable=False)                 # Root bot's id
     is_whitelist_mode = Column(Boolean, default=True)       # Defines whether white or blacklist mode enabled for this session
     bot_active = Column(Boolean, default=True)              # Defines whether bot is active or not
     state = Column(String, default="DEFAULT")               # Current state of the bot (e.g., DEFAULT, PENDING_LIST_UPDATE, etc.)
