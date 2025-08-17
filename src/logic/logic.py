@@ -1,3 +1,4 @@
+import logging
 from telethon import TelegramClient
 
 async def get_user_info(client: TelegramClient, users):
@@ -14,5 +15,5 @@ async def get_user_info(client: TelegramClient, users):
                 "username": user.username
             })
         except Exception as e:
-            print(f"Error fetching user {user_id}: {e}")
+            logging.warning(f"Error fetching user {user_id}: {e}")
     return userdata

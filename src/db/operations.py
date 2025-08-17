@@ -8,6 +8,7 @@ This DB is designed for only one host user
 
 """
 import logging
+import os
 
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -17,28 +18,28 @@ from db.schema import Base, UserSettings, Users, Message
 from events.user_interaction.states import States
 
 
-# DATABASE_URL = os.getenv("DATABASE_URL")
-DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost/test_db"
+DATABASE_URL = os.getenv("DATABASE_URL")
+# DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost/test_db"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-async def init_db(me):
+async def init_db(self_id: str, bot_id: str):
     logging.info("Initializing database...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     # Create default settings if not set yet
     if not await get_user_settings():
-        await default_user_settings(str(me.id))
+        await default_user_settings(self_id, bot_id)
 
     logging.info("Database initialized successfully.")
 
 
-async def default_user_settings(self_id: str):
+async def default_user_settings(self_id: str, bot_id: str):
     """Creates default user settings if they do not exist"""
     async with AsyncSessionLocal() as session:
-        user_settings = UserSettings(user_id=self_id, is_whitelist_mode=True)
+        user_settings = UserSettings(user_id=self_id, bot_id=bot_id, is_whitelist_mode=True)
         session.add(user_settings)
         await session.commit()
         logging.info("Default user settings created.")
@@ -112,7 +113,7 @@ async def get_deleted_messages(deleted_message_ids):
                 select(Message).filter(Message.telegram_message_id == str(message_id))
             )
             message = message.scalar_one_or_none()
-            
+
             # If message not found, log and continue
             if not message:
                 logging.warning(f"Message with ID {message_id} not found in the database")
