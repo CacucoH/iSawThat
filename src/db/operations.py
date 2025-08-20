@@ -104,13 +104,17 @@ async def add_msg(tg_msg_id, chat_id, sender_id, content):
         logging.info(f"Message from {sender_id} saved to the database.")
 
 
-async def get_deleted_messages(deleted_message_ids):
+async def get_deleted_messages(deleted_message_ids: list[str] | list[int]):
+    deleted_message_ids = map(str, deleted_message_ids)
+
     async with AsyncSessionLocal() as session:
         messages = []
         for message_id in deleted_message_ids:
             # Get message by ID
             message = await session.execute(
-                select(Message).filter(Message.telegram_message_id == str(message_id))
+                select(Message).where(
+                    (Message.telegram_message_id == message_id)
+                )
             )
             message = message.scalar_one_or_none()
 
@@ -119,17 +123,24 @@ async def get_deleted_messages(deleted_message_ids):
                 logging.warning(f"Message with ID {message_id} not found in the database")
                 continue
 
-            messages.append(
-                {
-                    "id": message.id,
-                    "telegram_message_id": message.telegram_message_id,
-                    "chat_id": message.chat_id,
-                    "sender_id": message.sender_id,
-                    "content": message.content,
-                    "date": message.date
-                }
-            )
+            messages.append(message)
         return messages
+    
+
+async def get_edited_message(edited_msg_id: str | int, chat_id: str | int):
+    edited_msg_id = str(edited_msg_id)
+    chat_id = str(chat_id)
+
+    async with AsyncSessionLocal() as session:
+        message = await session.execute(
+                select(Message).where(
+                    (Message.telegram_message_id == edited_msg_id) 
+                        &
+                    (Message.chat_id == chat_id)
+                )
+            )
+        message = message.scalar_one_or_none()
+    return message
 
 
 async def set_user_state(state: States):

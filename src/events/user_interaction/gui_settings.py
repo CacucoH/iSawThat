@@ -2,7 +2,7 @@ from telethon import TelegramClient, events
 from telethon.tl.custom import Button
 
 from db.schema import UserSettings
-from db.operations import update_userlist, update_whitelist_mode, get_user_settings
+from db.operations import get_user_settings
 
 
 async def main_menu_buttons():
@@ -11,7 +11,7 @@ async def main_menu_buttons():
     return [
         [Button.inline("⚙️ Настройка режима", data="sw_mode_menu")],
         [Button.inline("👁️ Показать список слежки", data="show_list")],
-        [Button.inline("🔄 Обновить список слежки", data="update_list")],
+        [Button.inline("📝 Обновить список слежки", data="update_list")],
         [Button.inline("🔌 Выключить бота" if settings.bot_active else "🔋 Включить бота", data="toggle_bot")],
     ]
 
