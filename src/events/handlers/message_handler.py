@@ -1,4 +1,5 @@
 import logging
+import os
 from telethon import events
 from telethon.events.newmessage import NewMessage
 from telethon.tl.patched import Message
@@ -6,7 +7,8 @@ from telethon.tl.types import PeerUser, PeerChannel
 
 from events.user_interaction.states import States
 from events.user_interaction.gui_settings import main_menu_buttons
-from logic.logic import get_user_info
+from logic.logic import get_user_info, owner_only
+from logic.clients import bot
 from db.operations import add_msg, get_user_settings, set_user_state, update_userlist, search_user_by_id
 from db.schema import Message
 
@@ -16,8 +18,12 @@ async def handle_new_message(event: events.NewMessage.Event):
     user_id = message.sender_id
     settings = await get_user_settings()
 
+    # In case bot is deactivated
+    if not settings.bot_active:
+        return
+
     if not isinstance(message.peer_id, PeerChannel):
-        if not message.sender or message.sender.bot:
+        if message.sender and message.sender.bot:
             return
 
     # Check if the message is in the pending list update state
@@ -31,10 +37,6 @@ async def handle_new_message(event: events.NewMessage.Event):
             # await event.respond("✅ Список обновлён!")
             await set_user_state(States.LIST_UPDATED)
             return
-
-    # In case bot is deactivated
-    if not settings.bot_active:
-        return
 
     # Skip messages if PM filtration is enabled and the message is not from a private chat
     if not event.is_private and settings.pm_filter:
@@ -60,8 +62,18 @@ async def handle_new_message(event: events.NewMessage.Event):
     logging.info(f"New message from user ID: {user_id} {message.text}")
 
 
+@owner_only
 async def handle_start_message(event: NewMessage.Event, edit: bool = False, message: str | None = None):
     """Handles the /start command and displays the main menu."""
+    # settings = await get_user_settings()
+    # sender = event.sender_id
+    
+    # if str(sender) != settings.user_id:
+    #     GOODBYE_MSG = os.getenv("REPLY_UNKNOWN_USER", "Not authorized")
+    #     logging.warning(f"ATTENTION! User {sender} has tried to gain access to bot. aborted")
+    #     await bot.send_message(sender, GOODBYE_MSG)
+    #     return
+
     await set_user_state(States.DEFAULT)
     if not message:
         message = "Давай настраивай, че как не свой:"
