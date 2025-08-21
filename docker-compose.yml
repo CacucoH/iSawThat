@@ -9,8 +9,6 @@ services:
       POSTGRES_DB: telegram_db
     volumes:
       - pgdata:/var/lib/postgresql/data
-    env_file:
-      - ./misc/config/settings.env
     ports:
       - "${DB_PORT}:${DB_PORT}"
     command: -p ${DB_PORT}
@@ -26,7 +24,6 @@ services:
       - ./misc:/app/misc
     env_file:
       - ./misc/config/passwd.env
-      - ./misc/config/settings.env
     environment:
       - DATABASE_URL=postgresql+asyncpg://bot:${DB_PASSW}@postgres:${DB_PORT}/telegram_db
     command: ["python", "/app/main.py"]
