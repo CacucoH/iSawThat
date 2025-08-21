@@ -19,6 +19,9 @@ async def handle_message_edited(event: events.MessageEdited.Event):
     
     if not old_message:
         return
+    
+    if old_message == new_content:
+        return
 
     logging.info(f"Message with ID {edited_msg_id} were edited")
         
