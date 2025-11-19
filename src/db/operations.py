@@ -19,7 +19,7 @@ from events.user_interaction.states import States
 
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-# DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost/test_db"
+# DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost/test_db" # DO NOT USE, FOR TESTING ONLY
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
@@ -33,7 +33,7 @@ async def init_db(self_id: str, bot_id: str):
     if not await get_user_settings():
         await default_user_settings(self_id, bot_id)
 
-    logging.info("Database initialized successfully.")
+    logging.info("[+] Database initialized successfully.")
 
 
 async def default_user_settings(self_id: str, bot_id: str):
@@ -102,6 +102,25 @@ async def add_msg(tg_msg_id, chat_id, sender_id, content):
         session.add(message)
         await session.commit()
         logging.info(f"Message from {sender_id} saved to the database.")
+
+
+async def update_msg(tg_msg_id, chat_id, sender_id, new_content):
+    async with AsyncSessionLocal() as session:
+        r = await session.execute(select(Message).where(
+                (Message.telegram_message_id == str(tg_msg_id))
+                    &
+                (Message.chat_id == str(chat_id))
+            )
+        )
+        message: Message = r.scalar_one_or_none()
+
+        if not message:
+            logging.warning(f"Failed to update {sender_id}: message not found in the database.")
+            return
+        
+        message.content = new_content
+        await session.commit()
+        logging.info(f"Message from {sender_id} was updated.")
 
 
 async def get_deleted_messages(deleted_message_ids: list[str] | list[int]):
