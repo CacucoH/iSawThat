@@ -4,28 +4,34 @@ services:
   postgres:
     image: postgres:15
     environment:
-      POSTGRES_USER: bot
+      POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSW}
       POSTGRES_DB: telegram_db
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER} -p ${DB_PORT} -d telegram_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
     volumes:
-      - pgdata:/var/lib/postgresql/data
+      - ./misc/data/pgdata:/var/lib/postgresql/data
     ports:
       - "${DB_PORT}:${DB_PORT}"
-    command: -p ${DB_PORT}
-
+    command: -p ${DB_PORT} -d telegram_db
 
   bot:
     build: .
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
     volumes:
       - ./src:/app
-      - ./session:/app/session
-      - ./misc:/app/misc
+      - ./misc/logs:/app/misc/logs
+      - ./misc/session:/app/misc/session
+      - ./misc/data/files:/app/misc/data
     env_file:
-      - ./misc/config/passwd.env
+      - ./misc/config/bot.env
     environment:
-      - DATABASE_URL=postgresql+asyncpg://bot:${DB_PASSW}@postgres:${DB_PORT}/telegram_db
+      - DATABASE_URL=postgresql+asyncpg://${DB_USER}:${DB_PASSW}@postgres:${DB_PORT}/telegram_db
     command: ["python", "/app/main.py"]
 
 volumes:

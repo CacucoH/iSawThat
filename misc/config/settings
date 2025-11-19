@@ -1,0 +1,6 @@
+### SETTINGS ###
+
+MAX_MESSAGE_LEN=4096
+
+# Как отвечать незнакомцам которые нашли бота
+REPLY_UNKNOWN_USER=NOT AUTHORIZED
