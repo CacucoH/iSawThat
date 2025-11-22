@@ -3,8 +3,10 @@ from telethon import TelegramClient
 from telethon.events.callbackquery import CallbackQuery
 
 from events.handlers.message_handler import handle_start_message
-from events.user_interaction.gui_settings import back_to_main_menu_button, settings_buttons
-from db.operations import get_victims_list, set_user_state, toggle_pm_filter, update_whitelist_mode, get_user_settings, activate_bot
+from events.user_interaction.gui_settings import back_to_main_menu_button, settings_buttons, autoremove_settings
+from db.operations import (get_victims_list, set_user_state, toggle_pm_filter,
+                           update_whitelist_mode, get_user_settings, activate_bot, update_time_delta)
+from db.schema import UserSettings
 from events.user_interaction.states import States
 from logic.logic import owner_only
 
@@ -12,27 +14,38 @@ from logic.logic import owner_only
 @owner_only
 async def callbacks_handler(event: CallbackQuery.Event):
     callback = event.data
-    settings = await get_user_settings()
+    callback_data = callback.split(b':')
+    callback_method_invoke = callback_data[0]
+    
+    settings: UserSettings = await get_user_settings()
 
-    match callback:
+    match callback_method_invoke:
+        case b"update_autoremove":
+            await update_delta_ui(event, settings.message_deletion_delta)
+        
+        case b"update_autoremove_time":
+            func = callback_data[1]
+            new_delta = await update_time_delta(func)
+            await update_delta_ui(event, settings.message_deletion_delta)
+
         case b"sw_mode":
             await update_whitelist_mode()
             await event.edit(
                 f"🔧 Режим изменен на **{'Whitelist ✅' if not settings.is_whitelist_mode else 'Blacklist ❌'}**",
-                buttons=settings_buttons(await get_user_settings())
+                buttons=settings_buttons(settings)
             )
 
         case b"sw_pm_filter":
             await toggle_pm_filter()
             await event.edit(
                 f"🔒 Теперь я слушаю сообщения **{'только из лс' if not settings.pm_filter else 'из всех источников'}**",
-                buttons=settings_buttons(await get_user_settings())
+                buttons=settings_buttons(settings)
             )
 
         case b"sw_mode_menu":
             await event.edit(
                 f"Настройки фильтрации сообщений:",
-                buttons=settings_buttons(await get_user_settings())
+                buttons=settings_buttons(settings)
             )
 
         case b"toggle_bot":
@@ -44,7 +57,7 @@ async def callbacks_handler(event: CallbackQuery.Event):
             )
         
         case b"update_list":
-            await event.edit("Ах, обновить список? Ну давай, я обновлю его для тебя😎\nВведи список `username'ов` через запятую:",
+            await event.edit("Обновить список? Ну давай, я обновлю его для тебя😎\nВведи список `username'ов` через запятую:",
                               buttons=back_to_main_menu_button())
             await set_user_state(States.PENDING_LIST_UPDATE)
 
@@ -64,3 +77,17 @@ async def callbacks_handler(event: CallbackQuery.Event):
 
         case _:
             await event.answer("Неизвестная команда", alert=True)
+
+    
+async def update_delta_ui(event, time_delta: str):
+    # TG sometimes does not edit message. This is a fix
+    dumbass_graphics = {
+        '1':'🚨',
+        '3':'⚠️',
+        '7': '✅',
+        '14': '🛡'
+    }
+    await event.edit(
+        f"{dumbass_graphics[time_delta]} Удаление сообщений старше:",
+        buttons=autoremove_settings(time_delta)
+    )

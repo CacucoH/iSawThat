@@ -1,6 +1,8 @@
+import datetime
+
 from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
 from sqlalchemy.orm import declarative_base
-import datetime
+from dateutil.relativedelta import relativedelta
 
 Base = declarative_base()
 
@@ -31,6 +33,9 @@ class UserSettings(Base):
     bot_active = Column(Boolean, default=True)              # Defines whether bot is active or not
     state = Column(String, default="DEFAULT")               # Current state of the bot (e.g., DEFAULT, PENDING_LIST_UPDATE, etc.)
     pm_filter = Column(Boolean, default=False)              # Defines whether PM filtration is enabled or not
+    message_deletion_delta = Column(String, default='7')    # Time delta that defines frequency of DB cleaning; Stored as string since there is no relativedelta DT in PG
+    message_deletion_delta_id = Column(Integer, default=2)  # ID of timedelta is defined in db.operations module
+
 
 class Users(Base):
     """

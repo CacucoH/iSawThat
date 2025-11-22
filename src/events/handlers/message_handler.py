@@ -5,6 +5,7 @@ from telethon.events.newmessage import NewMessage
 from telethon.tl.patched import Message
 from telethon.tl.types import PeerUser, PeerChannel
 
+from db.schema import UserSettings
 from events.user_interaction.states import States
 from events.user_interaction.gui_settings import main_menu_buttons
 from logic.logic import get_user_info, owner_only
@@ -16,10 +17,14 @@ from db.schema import Message
 async def handle_new_message(event: events.NewMessage.Event):
     message: Message = event.message
     user_id = message.sender_id
-    settings = await get_user_settings()
+    settings: UserSettings = await get_user_settings()
 
     # In case bot is deactivated
     if not settings.bot_active:
+        return
+    
+    # Dont record messages from UI bot
+    if str(user_id) == settings.bot_id:
         return
 
     if not isinstance(message.peer_id, PeerChannel):

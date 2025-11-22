@@ -1,6 +1,5 @@
 """
 ## Database operations for the iSawThat bot
-
 This module provides functions to initialize the database and manage user settings
 
 === IMPORTANT ===
@@ -10,20 +9,25 @@ This DB is designed for only one host user
 import logging
 import os
 
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
+from dateutil.relativedelta import relativedelta
+from datetime import datetime
 
 from db.schema import Base, UserSettings, Users, Message
 from events.user_interaction.states import States
 
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-# DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost/test_db" # DO NOT USE, FOR TESTING ONLY
+DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db" # DO NOT USE, FOR TESTING ONLY
+TIMEDELTA_ARRAY = ['1', '3', '7', '14']
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
+
+### INIT ###
 async def init_db(self_id: str, bot_id: str):
     logging.info("Initializing database...")
     async with engine.begin() as conn:
@@ -45,39 +49,19 @@ async def default_user_settings(self_id: str, bot_id: str):
         logging.info("Default user settings created.")
 
 
-async def get_user_settings():
+### SETTERS ###
+async def add_msg(tg_msg_id, chat_id, sender_id, content):
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(UserSettings))
-        user_settings = result.scalar_one_or_none()
-        return user_settings
-
-
-async def update_userlist(userlist):
-    """Updates userlist"""
-    async with AsyncSessionLocal() as session:
-        await session.execute(delete(Users))  # Delete all existing users
+        message = Message(
+            telegram_message_id=str(tg_msg_id),
+            chat_id=str(chat_id),
+            sender_id=sender_id,
+            content=content
+        )
+        session.add(message)
         await session.commit()
-
-        for user in userlist:
-            new_user = Users(
-                user_id=user["id"],
-                user_full_name=user["full_name"],
-                phone=user.get("phone"),
-                username=user.get("username")
-            )
-            session.add(new_user)
-        await session.commit()
-
-
-async def update_whitelist_mode():
-    """Updates whitelist mode"""
-    async with AsyncSessionLocal() as session:
-        result = await session.execute(select(UserSettings))
-        user_settings = result.scalar_one_or_none()
-
-        user_settings.is_whitelist_mode = not user_settings.is_whitelist_mode
-        await session.commit()
-
+        logging.info(f"Message from {sender_id} saved to the database.")
+    
 
 async def activate_bot():
     """Activates or deactivates the bot"""
@@ -91,36 +75,33 @@ async def activate_bot():
         logging.info(f"Bot {'activated' if user_settings.bot_active else 'deactivated'}")
 
 
-async def add_msg(tg_msg_id, chat_id, sender_id, content):
+async def toggle_pm_filter():
+    """Toggles PM filter setting"""
     async with AsyncSessionLocal() as session:
-        message = Message(
-            telegram_message_id=str(tg_msg_id),
-            chat_id=str(chat_id),
-            sender_id=sender_id,
-            content=content
-        )
-        session.add(message)
+        res = await session.execute(select(UserSettings))
+        settings = res.scalar_one_or_none()
+
+        settings.pm_filter = not settings.pm_filter
         await session.commit()
-        logging.info(f"Message from {sender_id} saved to the database.")
+        logging.info(f"PM filter {'enabled' if settings.pm_filter else 'disabled'}")
 
 
-async def update_msg(tg_msg_id, chat_id, sender_id, new_content):
+async def set_user_state(state: States):
     async with AsyncSessionLocal() as session:
-        r = await session.execute(select(Message).where(
-                (Message.telegram_message_id == str(tg_msg_id))
-                    &
-                (Message.chat_id == str(chat_id))
-            )
-        )
-        message: Message = r.scalar_one_or_none()
+        res = await session.execute(select(UserSettings))
+        settings = res.scalar_one_or_none()
 
-        if not message:
-            logging.warning(f"Failed to update {sender_id}: message not found in the database.")
-            return
-        
-        message.content = new_content
+        settings.state = state.value
         await session.commit()
-        logging.info(f"Message from {sender_id} was updated.")
+    
+    
+### GETTERS ###
+async def search_user_by_id(user_id: str):
+    """Searches for a user by their ID"""
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(Users).filter(Users.user_id == user_id))
+        user = result.scalar_one_or_none()
+        return user
 
 
 async def get_deleted_messages(deleted_message_ids: list[str] | list[int]):
@@ -144,7 +125,7 @@ async def get_deleted_messages(deleted_message_ids: list[str] | list[int]):
 
             messages.append(message)
         return messages
-    
+
 
 async def get_edited_message(edited_msg_id: str | int, chat_id: str | int):
     edited_msg_id = str(edited_msg_id)
@@ -162,15 +143,6 @@ async def get_edited_message(edited_msg_id: str | int, chat_id: str | int):
     return message
 
 
-async def set_user_state(state: States):
-    async with AsyncSessionLocal() as session:
-        res = await session.execute(select(UserSettings))
-        settings = res.scalar_one_or_none()
-
-        settings.state = state.value
-        await session.commit()
-
-
 async def get_user_state() -> States:
     async with AsyncSessionLocal() as session:
         res = await session.execute(select(UserSettings))
@@ -179,17 +151,6 @@ async def get_user_state() -> States:
         if settings and settings.state:
             return States(settings.state)
         return States.DEFAULT
-    
-
-async def toggle_pm_filter():
-    """Toggles PM filter setting"""
-    async with AsyncSessionLocal() as session:
-        res = await session.execute(select(UserSettings))
-        settings = res.scalar_one_or_none()
-
-        settings.pm_filter = not settings.pm_filter
-        await session.commit()
-        logging.info(f"PM filter {'enabled' if settings.pm_filter else 'disabled'}")
 
 
 async def get_victims_list():
@@ -208,9 +169,104 @@ async def get_victims_list():
     ]
 
 
-async def search_user_by_id(user_id: str):
-    """Searches for a user by their ID"""
+async def get_user_settings():
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(Users).filter(Users.user_id == user_id))
-        user = result.scalar_one_or_none()
-        return user
+        result = await session.execute(select(UserSettings))
+        user_settings = result.scalar_one_or_none()
+        return user_settings
+
+
+### UPDATE METHODS ###
+async def update_whitelist_mode():
+    """Updates whitelist mode"""
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(UserSettings))
+        user_settings = result.scalar_one_or_none()
+
+        user_settings.is_whitelist_mode = not user_settings.is_whitelist_mode
+        await session.commit()
+
+
+async def update_userlist(userlist):
+    """Updates userlist"""
+    async with AsyncSessionLocal() as session:
+        await session.execute(delete(Users))  # Delete all existing users
+        await session.commit()
+
+        for user in userlist:
+            new_user = Users(
+                user_id=user["id"],
+                user_full_name=user["full_name"],
+                phone=user.get("phone"),
+                username=user.get("username")
+            )
+            session.add(new_user)
+        await session.commit()
+
+
+async def update_msg(tg_msg_id, chat_id, sender_id, new_content):
+    async with AsyncSessionLocal() as session:
+        r = await session.execute(select(Message).where(
+                (Message.telegram_message_id == str(tg_msg_id))
+                    &
+                (Message.chat_id == str(chat_id))
+            )
+        )
+        message: Message = r.scalar_one_or_none()
+
+        if not message:
+            logging.warning(f"Failed to update {sender_id}: message not found in the database.")
+            return
+        
+        message.content = new_content
+        await session.commit()
+        logging.info(f"Message from {sender_id} was updated.")
+
+
+async def update_time_delta(operation: str) -> str:
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(UserSettings))
+        user_settings: UserSettings = result.scalar_one_or_none()
+
+        current_delta_id = user_settings.message_deletion_delta_id
+        total_time_array_len = len(TIMEDELTA_ARRAY)
+
+        match operation:
+            case b"increase":
+                next_idx = (current_delta_id + 1) % total_time_array_len
+            
+            case b"decrease":
+                next_idx = (current_delta_id - 1 + total_time_array_len) % total_time_array_len
+            
+            case _:
+                next_idx = 0
+            
+        new_delta = TIMEDELTA_ARRAY[next_idx]
+        
+        # Update data
+        user_settings.message_deletion_delta = new_delta
+        user_settings.message_deletion_delta_id = next_idx
+        await session.commit()
+        
+        return new_delta
+
+
+### DELETE ###
+# async def delete_message():
+#     async with AsyncSessionLocal() as session:
+
+async def delete_messages_by_date(delete_after_date) -> list[Message]:
+    """Deletes old messages. Returns list of deleted messages"""
+    async with AsyncSessionLocal() as session:
+        res = (await session.execute(select(Message).where(
+            Message.date > delete_after_date
+        ))).scalars().all()
+
+        await session.execute(delete(Message).where(
+            Message.date < delete_after_date
+        ))
+        
+        logging.info(f"Deleted {len(res)} old messages from DB")
+
+        await session.commit()
+        return res
