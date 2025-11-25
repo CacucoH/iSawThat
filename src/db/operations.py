@@ -9,7 +9,9 @@ This DB is designed for only one host user
 import logging
 import os
 
-from sqlalchemy import select, delete, update
+# from dotenv import load_dotenv
+from typing import Set
+from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from dateutil.relativedelta import relativedelta
@@ -17,10 +19,15 @@ from datetime import datetime
 
 from db.schema import Base, UserSettings, Users, Message
 from events.user_interaction.states import States
+from logic.helper_funcs import beautify_logger_name
 
 
+logger = logging.getLogger(beautify_logger_name(__name__))
+# load_dotenv("./misc/config/settings")
+
+# DEVMODE = bool(os.getenv("DEVMODE"))
 DATABASE_URL = os.getenv("DATABASE_URL")
-DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db" # DO NOT USE, FOR TESTING ONLY
+# DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db"
 TIMEDELTA_ARRAY = ['1', '3', '7', '14']
 
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -29,7 +36,7 @@ AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=F
 
 ### INIT ###
 async def init_db(self_id: str, bot_id: str):
-    logging.info("Initializing database...")
+    logger.info(">> Initializing database...")
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
@@ -37,7 +44,7 @@ async def init_db(self_id: str, bot_id: str):
     if not await get_user_settings():
         await default_user_settings(self_id, bot_id)
 
-    logging.info("[+] Database initialized successfully.")
+    logger.info("[+] Database initialized successfully.")
 
 
 async def default_user_settings(self_id: str, bot_id: str):
@@ -46,22 +53,36 @@ async def default_user_settings(self_id: str, bot_id: str):
         user_settings = UserSettings(user_id=self_id, bot_id=bot_id, is_whitelist_mode=True)
         session.add(user_settings)
         await session.commit()
-        logging.info("Default user settings created.")
+        logger.info("[+] Default user settings created.")
 
 
 ### SETTERS ###
-async def add_msg(tg_msg_id, chat_id, sender_id, content):
+async def add_msg(tg_msg_id, chat_id, sender_id, content, linked_attachment_location=None) -> int:
     async with AsyncSessionLocal() as session:
         message = Message(
             telegram_message_id=str(tg_msg_id),
             chat_id=str(chat_id),
             sender_id=sender_id,
-            content=content
+            content=content,
+            attachment_location = linked_attachment_location
         )
         session.add(message)
         await session.commit()
-        logging.info(f"Message from {sender_id} saved to the database.")
-    
+        logger.debug(f"[+] Message from {sender_id} is saved to the database.")
+
+        return message.id
+
+
+# async def add_attachment(path: str) -> int:
+#     async with AsyncSessionLocal() as session:
+#         attachement = Attachement(
+#             location=path
+#         )
+#         session.add(attachement)
+#         await session.commit()
+#         logger.info(f"Attachment at {path} is saved to the database.")
+
+#         return attachement.id
 
 async def activate_bot():
     """Activates or deactivates the bot"""
@@ -72,7 +93,7 @@ async def activate_bot():
         # Switch bot state
         user_settings.bot_active = not user_settings.bot_active
         await session.commit()
-        logging.info(f"Bot {'activated' if user_settings.bot_active else 'deactivated'}")
+        logger.debug(f"[+] Bot {'activated' if user_settings.bot_active else 'deactivated'}")
 
 
 async def toggle_pm_filter():
@@ -83,7 +104,7 @@ async def toggle_pm_filter():
 
         settings.pm_filter = not settings.pm_filter
         await session.commit()
-        logging.info(f"PM filter {'enabled' if settings.pm_filter else 'disabled'}")
+        logger.debug(f"[+] PM filter {'enabled' if settings.pm_filter else 'disabled'}")
 
 
 async def set_user_state(state: States):
@@ -120,7 +141,7 @@ async def get_deleted_messages(deleted_message_ids: list[str] | list[int]):
 
             # If message not found, log and continue
             if not message:
-                logging.warning(f"Message with ID {message_id} not found in the database")
+                logger.warning(f"[!] Message with ID {message_id} not found in the database")
                 continue
 
             messages.append(message)
@@ -215,12 +236,12 @@ async def update_msg(tg_msg_id, chat_id, sender_id, new_content):
         message: Message = r.scalar_one_or_none()
 
         if not message:
-            logging.warning(f"Failed to update {sender_id}: message not found in the database.")
+            logger.warning(f"[!] Failed to update {sender_id}: message not found in the database.")
             return
         
         message.content = new_content
         await session.commit()
-        logging.info(f"Message from {sender_id} was updated.")
+        logger.debug(f"[+] Message from {sender_id} was updated.")
 
 
 async def update_time_delta(operation: str) -> str:
@@ -252,21 +273,36 @@ async def update_time_delta(operation: str) -> str:
 
 
 ### DELETE ###
-# async def delete_message():
-#     async with AsyncSessionLocal() as session:
-
 async def delete_messages_by_date(delete_after_date) -> list[Message]:
     """Deletes old messages. Returns list of deleted messages"""
     async with AsyncSessionLocal() as session:
         res = (await session.execute(select(Message).where(
-            Message.date > delete_after_date
+            Message.date <= delete_after_date
         ))).scalars().all()
 
         await session.execute(delete(Message).where(
-            Message.date < delete_after_date
+            Message.date <= delete_after_date
         ))
         
-        logging.info(f"Deleted {len(res)} old messages from DB")
-
+        logger.debug(f"[+] Deleted {len(res)} old messages from DB")
+        
+        # Also delete attachments linked to messages
+        await delete_old_attachments(res)
         await session.commit()
         return res
+    
+
+async def delete_old_attachments(old_messages: list[str]) -> Set[str]:
+    """Deletes old attachments. Returns list of deleted attachment paths"""
+    deleted_attachments: Set[str] = set()
+    for msg in old_messages:
+        path = msg.attachment_location
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+                deleted_attachments.add(path)
+                logger.info(f"[+] Deleted attachment: {path}")
+            except Exception as e:
+                logger.warning(f"[!] Failed to delete attachment {path}: {e}")
+
+    return deleted_attachments

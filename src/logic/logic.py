@@ -3,6 +3,9 @@ import os
 import logging
 from telethon import TelegramClient, events
 
+logger = logging.getLogger(__name__)
+
+
 async def get_user_info(client: TelegramClient, users):
     """Fetches the full user information of the current user."""
     userdata = []
@@ -17,7 +20,7 @@ async def get_user_info(client: TelegramClient, users):
                 "username": user.username
             })
         except Exception as e:
-            logging.warning(f"Error fetching user {user_id}: {e}")
+            logger.warning(f"Error fetching user {user_id}: {e}")
     return userdata
 
 
@@ -26,7 +29,7 @@ def owner_only(func):
     async def wrapper(*args, **kwargs):
         events = args[0] if args else None
         if not events:
-            logging.error("No event provided to owner_only decorator.")
+            logger.error("No event provided to owner_only decorator.")
             return
         
         from db.operations import get_user_settings
@@ -36,7 +39,7 @@ def owner_only(func):
 
         if str(sender) != settings.user_id:
             GOODBYE_MSG = os.getenv("REPLY_UNKNOWN_USER", "Not authorized")
-            logging.warning(f"ATTENTION! User {sender} tried to access the bot. Aborted.")
+            logger.warning(f"ATTENTION! User {sender} tried to access the bot. Aborted.")
             await events.client.send_message(sender, GOODBYE_MSG)
             return
 

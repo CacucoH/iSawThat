@@ -1,11 +1,10 @@
 import datetime
 
-from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
-from sqlalchemy.orm import declarative_base
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, ForeignKey
+from sqlalchemy.orm import declarative_base, relationship
 from dateutil.relativedelta import relativedelta
 
 Base = declarative_base()
-
 
 class Message(Base):
     """    
@@ -18,6 +17,7 @@ class Message(Base):
     chat_id = Column(String, nullable=False)
     sender_id = Column(String, nullable=False)
     content = Column(Text)
+    attachment_location = Column(String, nullable=True)
     date = Column(DateTime, default=(datetime.datetime.now(datetime.timezone.utc)).replace(tzinfo=None))
 
 
@@ -47,3 +47,16 @@ class Users(Base):
     user_full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     username = Column(String, nullable=True)
+
+
+# class Attachement(Base):
+#     """
+#         Stores links to attachements and their links to messages
+#     """
+
+#     __tablename__ = 'attachements'
+
+#     id = Column(Integer, primary_key=True)
+#     location = Column(String, nullable=False)
+
+#     message = relationship("Message", back_populates="attachment")

@@ -3,10 +3,13 @@ import logging
 from telethon import events
 from telethon.tl.types import User
 
+from db.schema import Message
 from db.operations import get_deleted_messages, get_user_settings
+from logic.helper_funcs import beautify_logger_name
 from logic.clients import bot, userbot
-from logic.logic import owner_only
+# from logic.logic import owner_only
 
+logger = logging.getLogger(beautify_logger_name(__name__))
 MAX_MESSAGE_LEN = int(os.getenv('MAX_MESSAGE_LEN', 4096))
 
 
@@ -16,12 +19,12 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
     # track_users = await get_victims_list()
 
     deleted_messages_ids = event.deleted_ids
-    logging.info(f"Messages with IDs {deleted_messages_ids} were deleted")
+    logger.info(f"Messages with IDs {deleted_messages_ids} were deleted")
     messages = await get_deleted_messages(deleted_messages_ids)
     current_len = 0 # message length counter
 
     for iter in range(0, len(messages)):
-        message = messages[iter]
+        message: Message = messages[iter]
 
         # user = next((user for user in track_users if user.user_id == message.sender_id), None)
         user = await userbot.get_entity(int(message.sender_id))
@@ -34,13 +37,13 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
             if isinstance(chat_info, User):
                 location = f"чате {chat_info.first_name} (@{chat_info.username})"
             else:
-                location = f"чате {chat_info.title} (@{chat_info.username})"
+                location = f"чате {chat_info.title} (@{chat_info.id})"
         
         # Check if text present
         if not message:
             continue
         
-        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {message.content} от {message.date}\n"
+        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {message.content}\n\nот {message.date}\n"
         current_len += len(msg)
         
         if current_len > MAX_MESSAGE_LEN:
@@ -52,4 +55,5 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
         if iter == len(messages) - 1:
             await bot.send_message(int(settings.user_id), msg_buffer)
         
-        
+        if message.attachment_location:
+            await bot.send_file(int(settings.user_id), file=message.attachment_location, caption="Удалённый файл:")

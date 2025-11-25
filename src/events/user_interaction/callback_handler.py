@@ -1,5 +1,3 @@
-import logging
-from telethon import TelegramClient
 from telethon.events.callbackquery import CallbackQuery
 
 from events.handlers.message_handler import handle_start_message

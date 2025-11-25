@@ -1,8 +1,4 @@
-import datetime
-
-from telethon import TelegramClient, events
 from telethon.tl.custom import Button
-
 from db.schema import UserSettings
 from db.operations import get_user_settings
 from logic.helper_funcs import correct_word_spell

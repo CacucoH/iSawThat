@@ -3,6 +3,9 @@ import logging
 
 from dotenv import load_dotenv
 from telethon import events
+from logic.logging_conf import setup_logging
+
+setup_logging() # Initialize logging before loading other modules
 
 from db.deleter import start_message_deleter_service
 from events.handlers.message_handler import handle_new_message, handle_start_message
@@ -16,16 +19,6 @@ from logic.clients import userbot, bot
 # в docker не нужно
 load_dotenv('./misc/config/settings')
 
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="[%(levelname)s] - %(asctime)s - %(message)s",
-    datefmt="%Y/%m/%d %H:%M:%S",
-    # filename=log_file,
-    # filemode="w" if log_file else None
-)
-
-
 userbot.add_event_handler(handle_new_message, events.NewMessage())
 userbot.add_event_handler(handle_message_deleted, events.MessageDeleted())
 userbot.add_event_handler(handle_message_edited, events.MessageEdited())
@@ -35,23 +28,24 @@ bot.add_event_handler(callbacks_handler, events.CallbackQuery())
 
 
 async def main():
-    logging.info("Starting app...")
+    logger = logging.getLogger(__name__)
+    logger.info(">> Starting app...")
 
-    logging.info("[+] Starting bots")
+    logger.info("[+] Starting bots")
     await bot.start(bot_token=os.getenv('BOT_TOKEN'))  # Запускаем обычного бота
     await userbot.start()  # Запускаем Userbot
 
-    logging.info("[+] Initializing db")
+    logger.info("[+] Initializing db")
     await init_db(str(userbot._self_id), str(bot._self_id))
 
-    logging.info("Client started. Listening for deleted messages")
+    logger.info("[i] Client started. Listening")
     # await bot.send_message(userbot._self_id, '✅ Бот успешно запущен')
     await asyncio.gather(
         bot.run_until_disconnected(),       # Запускаем обычного бота до его отключения
         userbot.run_until_disconnected(),    # Запускаем userbot до его отключения
         start_message_deleter_service()
     )
-    logging.info("Clients disconnected. Exiting...")
+    logger.info(">> Clients disconnected. Exiting...")
 
 if __name__ == '__main__':
     import asyncio
