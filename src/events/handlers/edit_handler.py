@@ -4,6 +4,7 @@ from telethon import events
 from telethon.tl.types import User, Channel, PeerUser
 
 from db.operations import get_edited_message, get_user_settings, update_msg
+from db.schema import Message as StoredMessage
 from logic.helper_funcs import beautify_logger_name
 from logic.clients import bot, userbot
 from logic.helper_funcs import message_sanitize
@@ -18,7 +19,7 @@ async def handle_message_edited(event: events.MessageEdited.Event):
     chat_id = str(event.chat_id)
     edited_msg_id = str(event._message_id)
     new_content = event.message.message
-    old_message = await get_edited_message(edited_msg_id, chat_id)
+    old_message: StoredMessage = await get_edited_message(edited_msg_id, chat_id)
     
     if not old_message:
         return
@@ -50,7 +51,8 @@ async def handle_message_edited(event: events.MessageEdited.Event):
         else:
             location = f"чате {chat_info.title} (@{chat_info.username})"
     
-    msg = f"⚠️ **{full_name if user else 'Unknown User'}** (@{user.username}) отредачил сообщентие в **{location}**:\n__{old_message.content} => {new_content}__\n\n{old_message.date}\n"
+    old_message_text = old_message.content if old_message.content else "<No text content>"
+    msg = f"⚠️ **{full_name if user else 'Unknown User'}** (@{user.username}) отредачил сообщентие в **{location}**:\n__{old_message_text} => {new_content}__\n\n{old_message.date}\n"
     await bot.send_message(int(settings.user_id), msg)
     logger.info(f"Message with ID {edited_msg_id} were edited")
 

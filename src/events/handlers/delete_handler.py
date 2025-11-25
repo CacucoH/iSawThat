@@ -29,6 +29,7 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
         # user = next((user for user in track_users if user.user_id == message.sender_id), None)
         user = await userbot.get_entity(int(message.sender_id))
         full_name = user.first_name + (' ' + user.last_name if user.last_name else '')
+        text_content = message.content if message.content else "<No text content>"
 
         if message.chat_id == message.sender_id:
             location = "личке"
@@ -43,7 +44,7 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
         if not message:
             continue
         
-        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {message.content}\n\nот {message.date}\n"
+        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {text_content}\n\nот {message.date}\n"
         current_len += len(msg)
         
         if current_len > MAX_MESSAGE_LEN:

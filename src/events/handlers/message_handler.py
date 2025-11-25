@@ -78,7 +78,7 @@ async def handle_new_message(event: events.NewMessage.Event):
         tg_msg_id=message.id,
         chat_id=message.chat_id,
         sender_id=sender_id,
-        content=message.text or "<No text content>",
+        content=message.text or '',
         linked_attachment_location=attachement_path if attachement_path else None
     )
     
