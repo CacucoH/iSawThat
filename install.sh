@@ -9,6 +9,11 @@ catch_ctrl_c() {
     exit 1
 }
 
+echo ">> Updating repo..."
+git pull &> /dev/null
+[[ $? -ne 0 ]] && { echo -e "${RED}Failed to update repo. Proceed anyway? (y/n)${NC}"; read -r answer; if [[ $answer != "y" ]]; then exit 1; fi; }
+echo -e "${GREEN}done${NC}"
+
 trap catch_ctrl_c SIGINT
 
 echo ">> Starting installation..."
@@ -20,8 +25,8 @@ echo -e "${GREEN}found${NC}"
 
 # Install virtual environment and dependencies
 echo -n ">> Installing dependencies..."
-[[ `ls venv` ]] || python3 -m venv venv
-source venv/bin/activate
+[[ `ls venv &> /dev/null` ]] || python3 -m venv venv &> /dev/null
+source venv/bin/activate &> /dev/null
 pip install --upgrade pip &> /dev/null
 pip install -r requirements.txt &> /dev/null
 
@@ -33,11 +38,17 @@ echo -e "${GREEN}done${NC}"
 echo ">> Obtaining session..."
 python3 session-initializer.py
 
+count=0
 while [[ $? -ne 0 ]]; do
     echo
     echo -n ">> Retrying session initialization..."
     rm -rf ./misc/session/
     python3 session-initializer.py
+    count=$((count + 1))
+    if [[ $count -ge 5 ]]; then
+        echo -e "${RED}Failed to initialize session after 5 attempts. Please check your configuration and try again.${NC}"
+        exit 1
+    fi
 done
 
 echo -e ">> Installation completed ${GREEN}successfully!${NC}"
