@@ -3,6 +3,7 @@ import logging
 from telethon import TelegramClient, events
 from dotenv import load_dotenv
 
+logger = logging.getLogger(__name__)
 load_dotenv('./misc/config/bot.env')
 
 ### INITIALIZE USERBOT AND BOT ###
@@ -13,5 +14,5 @@ session_name = os.getenv('APP_NAME')
 userbot = TelegramClient('./misc/session/' + session_name, api_id, api_hash) # Used for message tracking
 bot = TelegramClient('./misc/session/' + session_name + "_bot", api_id, api_hash) # Used for settings & callbacks
 
-logging.info("[+] Clients initialized")
+logger.info("[+] Clients initialized")
 ### END OF INITIALIZATION ###

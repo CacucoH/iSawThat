@@ -5,9 +5,11 @@ from telethon.tl.types import User
 
 from db.schema import Message
 from db.operations import get_deleted_messages, get_user_settings
+from logic.helper_funcs import beautify_logger_name
 from logic.clients import bot, userbot
 # from logic.logic import owner_only
 
+logger = logging.getLogger(beautify_logger_name(__name__))
 MAX_MESSAGE_LEN = int(os.getenv('MAX_MESSAGE_LEN', 4096))
 
 
@@ -17,7 +19,7 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
     # track_users = await get_victims_list()
 
     deleted_messages_ids = event.deleted_ids
-    logging.info(f"Messages with IDs {deleted_messages_ids} were deleted")
+    logger.info(f"Messages with IDs {deleted_messages_ids} were deleted")
     messages = await get_deleted_messages(deleted_messages_ids)
     current_len = 0 # message length counter
 
@@ -35,13 +37,13 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
             if isinstance(chat_info, User):
                 location = f"чате {chat_info.first_name} (@{chat_info.username})"
             else:
-                location = f"чате {chat_info.title} (@{chat_info.username})"
+                location = f"чате {chat_info.title} (@{chat_info.id})"
         
         # Check if text present
         if not message:
             continue
         
-        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {message.content} от {message.date}\n"
+        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {message.content}\n\nот {message.date}\n"
         current_len += len(msg)
         
         if current_len > MAX_MESSAGE_LEN:

@@ -1,5 +1,5 @@
 """
-    Misc helper funcs that my be useful
+    Misc helper funcs that might be useful
 """
 import re
 
@@ -24,3 +24,9 @@ def correct_word_spell(timedelta_days: str) -> str:
         base += 'ей' 
     
     return base
+
+
+def beautify_logger_name(name: str) -> str:
+    """Convert module path to a more readable logger name"""
+    moduleName = name.split('.')[-1]
+    return moduleName.capitalize()[0] + moduleName[1:]
