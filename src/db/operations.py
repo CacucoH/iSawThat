@@ -9,6 +9,8 @@ This DB is designed for only one host user
 import logging
 import os
 
+# from dotenv import load_dotenv
+from typing import Set
 from sqlalchemy import select, delete, update
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
@@ -19,8 +21,11 @@ from db.schema import Base, UserSettings, Users, Message
 from events.user_interaction.states import States
 
 
+# load_dotenv("./misc/config/settings")
+
+# DEVMODE = bool(os.getenv("DEVMODE"))
 DATABASE_URL = os.getenv("DATABASE_URL")
-DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db" # DO NOT USE, FOR TESTING ONLY
+# DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db"
 TIMEDELTA_ARRAY = ['1', '3', '7', '14']
 
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -50,18 +55,32 @@ async def default_user_settings(self_id: str, bot_id: str):
 
 
 ### SETTERS ###
-async def add_msg(tg_msg_id, chat_id, sender_id, content):
+async def add_msg(tg_msg_id, chat_id, sender_id, content, linked_attachment_location=None) -> int:
     async with AsyncSessionLocal() as session:
         message = Message(
             telegram_message_id=str(tg_msg_id),
             chat_id=str(chat_id),
             sender_id=sender_id,
-            content=content
+            content=content,
+            attachment_location = linked_attachment_location
         )
         session.add(message)
         await session.commit()
-        logging.info(f"Message from {sender_id} saved to the database.")
-    
+        logging.info(f"Message from {sender_id} is saved to the database.")
+
+        return message.id
+
+
+# async def add_attachment(path: str) -> int:
+#     async with AsyncSessionLocal() as session:
+#         attachement = Attachement(
+#             location=path
+#         )
+#         session.add(attachement)
+#         await session.commit()
+#         logging.info(f"Attachment at {path} is saved to the database.")
+
+#         return attachement.id
 
 async def activate_bot():
     """Activates or deactivates the bot"""
@@ -252,21 +271,38 @@ async def update_time_delta(operation: str) -> str:
 
 
 ### DELETE ###
-# async def delete_message():
-#     async with AsyncSessionLocal() as session:
-
 async def delete_messages_by_date(delete_after_date) -> list[Message]:
     """Deletes old messages. Returns list of deleted messages"""
     async with AsyncSessionLocal() as session:
         res = (await session.execute(select(Message).where(
-            Message.date > delete_after_date
+            Message.date <= delete_after_date
         ))).scalars().all()
 
         await session.execute(delete(Message).where(
-            Message.date < delete_after_date
+            Message.date <= delete_after_date
         ))
         
         logging.info(f"Deleted {len(res)} old messages from DB")
-
+        print((f"Deleted {len(res)} old messages from DB"))
+        
+        # Also delete attachments linked to messages
+        await delete_old_attachments(res)
         await session.commit()
         return res
+    
+
+async def delete_old_attachments(old_messages: list[str]) -> Set[str]:
+    """Deletes old attachments. Returns list of deleted attachment paths"""
+    deleted_attachments: Set[str] = set()
+    for msg in old_messages:
+        path = msg.attachment_location
+        if path and os.path.exists(path):
+            try:
+                os.remove(path)
+                deleted_attachments.add()
+                logging.info(f"Deleted attachment: {path}")
+                print(f"deleted {path}")
+            except Exception as e:
+                logging.warning(f"Failed to delete attachment {path}: {e}")
+
+    return deleted_attachments

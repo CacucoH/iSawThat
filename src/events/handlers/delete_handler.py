@@ -3,9 +3,10 @@ import logging
 from telethon import events
 from telethon.tl.types import User
 
+from db.schema import Message
 from db.operations import get_deleted_messages, get_user_settings
 from logic.clients import bot, userbot
-from logic.logic import owner_only
+# from logic.logic import owner_only
 
 MAX_MESSAGE_LEN = int(os.getenv('MAX_MESSAGE_LEN', 4096))
 
@@ -21,7 +22,7 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
     current_len = 0 # message length counter
 
     for iter in range(0, len(messages)):
-        message = messages[iter]
+        message: Message = messages[iter]
 
         # user = next((user for user in track_users if user.user_id == message.sender_id), None)
         user = await userbot.get_entity(int(message.sender_id))
@@ -52,4 +53,5 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
         if iter == len(messages) - 1:
             await bot.send_message(int(settings.user_id), msg_buffer)
         
-        
+        if message.attachment_location:
+            await bot.send_file(int(settings.user_id), file=message.attachment_location, caption="Удалённый файл:")
