@@ -20,7 +20,7 @@ load_dotenv('./misc/config/settings')
 logging.basicConfig(
     level=logging.INFO,
     format="[%(levelname)s] - %(asctime)s - %(message)s",
-    datefmt="%Y/%m/%d %H:%M:%S",
+    datefmt="%Y/%m/%d %H:%M:%S"
     # filename=log_file,
     # filemode="w" if log_file else None
 )
