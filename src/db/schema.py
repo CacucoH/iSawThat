@@ -6,7 +6,6 @@ from dateutil.relativedelta import relativedelta
 
 Base = declarative_base()
 
-
 class Message(Base):
     """    
         Contains messages from Telegram
