@@ -1,12 +1,11 @@
 import os
 import logging
 from telethon import events
-from telethon.tl.types import User
 
 from db.schema import Message
 from db.operations import get_deleted_messages, get_user_settings
 from logic.helper_funcs import beautify_logger_name
-from logic.clients import bot, userbot
+from logic.clients import bot
 # from logic.logic import owner_only
 
 logger = logging.getLogger(beautify_logger_name(__name__))
@@ -26,25 +25,17 @@ async def handle_message_deleted(event: events.MessageDeleted.Event):
     for iter in range(0, len(messages)):
         message: Message = messages[iter]
 
-        # user = next((user for user in track_users if user.user_id == message.sender_id), None)
-        user = await userbot.get_entity(int(message.sender_id))
-        full_name = user.first_name + (' ' + user.last_name if user.last_name else '')
+        full_name = message.sender_name or "Unknown User"
+        username = f"@{message.sender_username}" if message.sender_username else "no username"
         text_content = message.content if message.content else "<No text content>"
 
         if message.chat_id == message.sender_id:
             location = "личке"
         else:
-            chat_info = await userbot.get_entity(int(message.chat_id))
-            if isinstance(chat_info, User):
-                location = f"чате {chat_info.first_name} (@{chat_info.username})"
-            else:
-                location = f"чате {chat_info.title} (@{chat_info.id})"
-        
-        # Check if text present
-        if not message:
-            continue
-        
-        msg = f"🚨 **{full_name if user else 'Unknown User'}** ({user.username}) удалил сообщение в **{location}**: {text_content}\n\nот {message.date}\n"
+            chat_title = message.chat_title or "Unknown Chat"
+            location = f"чате {chat_title}" + (f" (@{message.chat_username})" if message.chat_username else "")
+
+        msg = f"🚨 **{full_name}** ({username}) удалил сообщение в **{location}**: {text_content}\n\nот {message.date}\n"
         current_len += len(msg)
         
         if current_len > MAX_MESSAGE_LEN:

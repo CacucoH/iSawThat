@@ -56,12 +56,17 @@ async def default_user_settings(self_id: str, bot_id: str):
 
 
 ### SETTERS ###
-async def add_msg(tg_msg_id, chat_id, sender_id, content, linked_attachment_location=None) -> int:
+async def add_msg(tg_msg_id, chat_id, sender_id, content, linked_attachment_location=None,
+                   sender_name=None, sender_username=None, chat_title=None, chat_username=None) -> int:
     async with AsyncSessionLocal() as session:
         message = Message(
             telegram_message_id=str(tg_msg_id),
             chat_id=str(chat_id),
             sender_id=sender_id,
+            sender_name=sender_name,
+            sender_username=sender_username,
+            chat_title=chat_title,
+            chat_username=chat_username,
             content=content,
             attachment_location = linked_attachment_location
         )

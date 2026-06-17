@@ -74,12 +74,36 @@ async def handle_new_message(event: events.NewMessage.Event):
     if message.file:
         attachement_path = await handle_attachement(user_id, message.chat_id, message)
 
+    sender = message.sender
+    sender_name = None
+    sender_username = None
+    if sender:
+        if isinstance(sender, User):
+            sender_name = sender.first_name + (f' {sender.last_name}' if sender.last_name else '')
+        else:
+            sender_name = sender.title
+        sender_username = sender.username
+
+    chat = message.chat
+    chat_title = None
+    chat_username = None
+    if chat:
+        if isinstance(chat, User):
+            chat_title = chat.first_name + (f' {chat.last_name}' if chat.last_name else '')
+        else:
+            chat_title = chat.title
+        chat_username = chat.username
+
     await add_msg(
         tg_msg_id=message.id,
         chat_id=message.chat_id,
         sender_id=sender_id,
         content=message.text or '',
-        linked_attachment_location=attachement_path if attachement_path else None
+        linked_attachment_location=attachement_path if attachement_path else None,
+        sender_name=sender_name,
+        sender_username=sender_username,
+        chat_title=chat_title,
+        chat_username=chat_username
     )
     
     logger.info(f"New message from user ID: {user_id}: \"{message.text}\" {f'with attachment: {attachement_path}' if message.file else ''} saved to the database.")
