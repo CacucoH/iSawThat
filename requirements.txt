@@ -10,6 +10,7 @@ pyaes==1.6.1
 pyasn1==0.6.1
 Pygments==2.19.1
 python-dotenv==1.1.0
+qrcode==8.2
 rich==14.0.0
 rsa==4.9.1
 SQLAlchemy==2.0.41

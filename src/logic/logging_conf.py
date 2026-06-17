@@ -1,12 +1,23 @@
+import os
 import logging
 import logging.config
 from pathlib import Path
 from datetime import datetime
 
+from logging.handlers import TimedRotatingFileHandler
 
 ### APPLICATION LOGGING CONFIGURATION ### 
-LOG_DIR = Path("./misc/logs")
+PATH = "./misc/logs"
+LOG_DIR = Path(PATH)
 LOG_DIR.mkdir(exist_ok=True)
+
+
+# handler = TimedRotatingFileHandler(
+#     os.path.join(PATH, f"log_{datetime.now()}"),
+#     when='midnight',  # 'midnight', 'D', 'W0', 'W1', etc.
+#     interval=1,
+#     backupCount=7
+# )
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -16,11 +27,14 @@ LOGGING_CONFIG = {
         }
     },
     "handlers": {
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": LOG_DIR / f"app_{datetime.now().strftime('%Y-%m-%d')}.log",
-            "formatter": "default",
-            "encoding": "utf-8"
+        'timed_file_handler': {
+            'class': 'logging.handlers.TimedRotatingFileHandler',
+            'formatter': 'default',
+            'filename': os.path.join(PATH, f"log_{datetime.now().strftime("%d-%m-%Y")}"),
+            'when': 'midnight',  # Rotate at midnight
+            'interval': 1,       # Rotate every day
+            'backupCount': 7,    # Keep 7 backup files
+            'encoding': 'utf8',
         },
         "console": {
             "class": "logging.StreamHandler",
@@ -29,7 +43,7 @@ LOGGING_CONFIG = {
     },
     "root": {
         "level": "DEBUG",
-        "handlers": ["file", "console"]
+        "handlers": ["timed_file_handler", "console"]
     }
 }
 

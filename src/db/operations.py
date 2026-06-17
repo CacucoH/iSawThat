@@ -27,7 +27,7 @@ logger = logging.getLogger(beautify_logger_name(__name__))
 
 # DEVMODE = bool(os.getenv("DEVMODE"))
 DATABASE_URL = os.getenv("DATABASE_URL")
-# DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db"
+DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db"
 TIMEDELTA_ARRAY = ['1', '3', '7', '14']
 
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -71,18 +71,7 @@ async def add_msg(tg_msg_id, chat_id, sender_id, content, linked_attachment_loca
         logger.debug(f"[+] Message from {sender_id} is saved to the database.")
 
         return message.id
-
-
-# async def add_attachment(path: str) -> int:
-#     async with AsyncSessionLocal() as session:
-#         attachement = Attachement(
-#             location=path
-#         )
-#         session.add(attachement)
-#         await session.commit()
-#         logger.info(f"Attachment at {path} is saved to the database.")
-
-#         return attachement.id
+    
 
 async def activate_bot():
     """Activates or deactivates the bot"""

@@ -47,16 +47,3 @@ class Users(Base):
     user_full_name = Column(String, nullable=False)
     phone = Column(String, nullable=True)
     username = Column(String, nullable=True)
-
-
-# class Attachement(Base):
-#     """
-#         Stores links to attachements and their links to messages
-#     """
-
-#     __tablename__ = 'attachements'
-
-#     id = Column(Integer, primary_key=True)
-#     location = Column(String, nullable=False)
-
-#     message = relationship("Message", back_populates="attachment")
