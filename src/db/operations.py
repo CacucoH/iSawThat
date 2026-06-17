@@ -9,7 +9,7 @@ This DB is designed for only one host user
 import logging
 import os
 
-# from dotenv import load_dotenv
+from dotenv import load_dotenv
 from typing import Set
 from sqlalchemy import select, delete
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
@@ -23,11 +23,10 @@ from logic.helper_funcs import beautify_logger_name
 
 
 logger = logging.getLogger(beautify_logger_name(__name__))
-# load_dotenv("./misc/config/settings")
+load_dotenv("./misc/config/settings")
 
-# DEVMODE = bool(os.getenv("DEVMODE"))
-DATABASE_URL = os.getenv("DATABASE_URL")
-DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db"
+DEVMODE = bool(os.getenv("DEVMODE"))
+DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db" if DEVMODE else os.getenv("DATABASE_URL")
 TIMEDELTA_ARRAY = ['1', '3', '7', '14']
 
 engine = create_async_engine(DATABASE_URL, echo=False)
