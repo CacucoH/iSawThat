@@ -25,7 +25,7 @@ from logic.helper_funcs import beautify_logger_name
 logger = logging.getLogger(beautify_logger_name(__name__))
 load_dotenv("./misc/config/settings")
 
-DEVMODE = bool(os.getenv("DEVMODE"))
+DEVMODE = os.getenv("DEVMODE", "False").strip().lower() == "true"
 DATABASE_URL = "postgresql+asyncpg://postgres:your_new_password@localhost/test_db" if DEVMODE else os.getenv("DATABASE_URL")
 TIMEDELTA_ARRAY = ['1', '3', '7', '14']
 
