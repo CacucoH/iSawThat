@@ -40,11 +40,26 @@ async def init_db(self_id: str, bot_id: str):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    # Create default settings if not set yet
-    if not await get_user_settings():
+    # Create default settings if not set yet, otherwise keep owner/bot ids in sync
+    # with whichever accounts are currently logged in
+    settings = await get_user_settings()
+    if not settings:
         await default_user_settings(self_id, bot_id)
+    elif settings.user_id != self_id or settings.bot_id != bot_id:
+        await sync_user_settings_ids(self_id, bot_id)
 
     logger.info("[+] Database initialized successfully.")
+
+
+async def sync_user_settings_ids(self_id: str, bot_id: str):
+    """Updates the stored owner/bot ids to match the currently logged-in accounts"""
+    async with AsyncSessionLocal() as session:
+        result = await session.execute(select(UserSettings))
+        user_settings = result.scalar_one_or_none()
+        user_settings.user_id = self_id
+        user_settings.bot_id = bot_id
+        await session.commit()
+        logger.info("[+] Synced owner/bot ids with the current session.")
 
 
 async def default_user_settings(self_id: str, bot_id: str):
