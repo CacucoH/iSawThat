@@ -25,9 +25,10 @@ services:
         condition: service_healthy
     volumes:
       - ./src:/app
+      - ./misc/config:/app/misc/config
       - ./misc/logs:/app/misc/logs
       - ./misc/session:/app/misc/session
-      - ./misc/data/files:/app/misc/data
+      - ./misc/data/files:/app/misc/data/files
     env_file:
       - ./misc/config/bot.env
     environment:
