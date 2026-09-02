@@ -24,19 +24,21 @@ async def callbacks_handler(event: CallbackQuery.Event):
         case b"update_autoremove_time":
             func = callback_data[1]
             new_delta = await update_time_delta(func)
-            await update_delta_ui(event, settings.message_deletion_delta)
+            await update_delta_ui(event, new_delta)
 
         case b"sw_mode":
             await update_whitelist_mode()
+            settings.is_whitelist_mode = not settings.is_whitelist_mode
             await event.edit(
-                f"🔧 Режим изменен на **{'Whitelist ✅' if not settings.is_whitelist_mode else 'Blacklist ❌'}**",
+                f"🔧 Режим изменен на **{'Whitelist ✅' if settings.is_whitelist_mode else 'Blacklist ❌'}**",
                 buttons=settings_buttons(settings)
             )
 
         case b"sw_pm_filter":
             await toggle_pm_filter()
+            settings.pm_filter = not settings.pm_filter
             await event.edit(
-                f"🔒 Теперь я слушаю сообщения **{'только из лс' if not settings.pm_filter else 'из всех источников'}**",
+                f"🔒 Теперь я слушаю сообщения **{'только из лс' if settings.pm_filter else 'из всех источников'}**",
                 buttons=settings_buttons(settings)
             )
 
